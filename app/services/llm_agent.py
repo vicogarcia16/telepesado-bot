@@ -6,7 +6,9 @@ from app.data.prompt import IDENTIFICATION_PROMPT, CREATIVE_PROMPT, SUGGESTION_P
 from app.core.exceptions import LLMApiError
 from app.services.tmdb_service import search_media_data
 from app.db import chat_history
+import logging
 
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -52,7 +54,8 @@ async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
                     raise LLMApiError(detail=f"Unexpected response format from model {model}: 'choices' key missing or empty. Raw response: {res.text}")
 
             except httpx.HTTPStatusError as e:
-                if e.response.status_code in [404, 429, 502, 503, 524]:
+                if e.response.status_code in [401, 402, 404, 429, 502, 503, 524]:
+                    logger.warning(f"Modelo {model} falló con status {e.response.status_code}. Intentando fallback...")
                     continue
                 raise LLMApiError(detail=f"HTTP error from model {model} (Status: {e.response.status_code}): {e} - Raw response: {e.response.text}")
             except json.JSONDecodeError as e:
