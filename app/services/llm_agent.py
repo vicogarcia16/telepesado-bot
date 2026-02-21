@@ -41,7 +41,8 @@ async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
 
                 if "error" in response_json and "message" in response_json["error"]:
                     error_message = response_json["error"]["message"]
-                    if "rate-limited" in error_message.lower():
+                    error_code = response_json["error"].get("code")
+                    if "rate-limited" in error_message.lower() or error_code == 524:
                         continue
                     raise LLMApiError(detail=f"Model API error {model}: {error_message}")
 
@@ -51,7 +52,7 @@ async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
                     raise LLMApiError(detail=f"Unexpected response format from model {model}: 'choices' key missing or empty. Raw response: {res.text}")
 
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429 or e.response.status_code == 404:
+                if e.response.status_code in [404, 429, 502, 503, 524]:
                     continue
                 raise LLMApiError(detail=f"HTTP error from model {model} (Status: {e.response.status_code}): {e} - Raw response: {e.response.text}")
             except json.JSONDecodeError as e:
