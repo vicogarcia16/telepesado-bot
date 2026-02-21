@@ -37,6 +37,14 @@ async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
         async with httpx.AsyncClient(timeout=30) as client:
             try:
                 res = await client.post(url, headers=headers, json=data)
+                if res.status_code == 429:
+                    logger.warning(f"Modelo {model} rate-limited (429). Esperando 1s...")
+                    await asyncio.sleep(1) 
+                    continue
+                
+                if res.status_code in [402, 502, 503, 524]:
+                    continue
+                
                 res.raise_for_status()
 
                 response_json = res.json()
