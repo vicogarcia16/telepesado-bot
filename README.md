@@ -1,133 +1,134 @@
-## 🎬 TelePesado Bot
+# 🎬 TelePesado Bot
+
 Bot de Telegram que recomienda películas y series, y conversa de forma natural usando FastAPI y un modelo LLM vía OpenRouter. Enriquece las recomendaciones con tráilers de YouTube y pósters oficiales obtenidos a través de la API de TMDb. Utiliza una base de datos en Neon para guardar el contexto del usuario y tiene un endpoint `/ping` para monitoreo del servicio con herramientas como UptimeRobot.
 
-#### 🚀 Características
-* 📩 Webhook de Telegram: Recibe y responde mensajes automáticamente desde tu bot.
+## 🚀 Características
 
-* 👋 Reconocimiento de saludos: Detecta saludos comunes y responde con un mensaje personalizado.
+- **Webhook de Telegram**: Recibe y responde mensajes automáticamente.
+- **Conversación Natural**: Interpreta preguntas del usuario y responde de manera fluida.
+- **Recomendaciones Enriquecidas**: Sugiere películas y series con tráiler, póster, dónde verla y reparto.
+- **IA con Respaldo**: Usa un LLM de OpenRouter y tiene un modelo de respaldo para garantizar la disponibilidad.
+- **Base de Datos Persistente**: Almacena el historial de chat en PostgreSQL (Neon) para dar contexto a la IA.
+- **Monitoreo**: Endpoint `/ping` para verificar el estado del servicio.
+- **Manejo de Errores Robusto**: Sistema de recuperación que envía respuestas en texto plano si falla el formato HTML y gestiona errores de API (404/429) automáticamente.
+- **Formato Enriquecido**: Utiliza HTML para dar formato a los mensajes en Telegram.
 
-* 🤖 Conversación natural: Interpreta preguntas o frases del usuario y responde de manera fluida, con validación previa del mensaje.
+## 🛠️ Arquitectura
 
-* 🎬 **Recomendaciones Enriquecidas y Precisas:** Sugiere películas y series basadas en gustos, géneros o estados de ánimo. Enriquece cada recomendación añadiendo automáticamente: **tráiler de YouTube (con selección mejorada para mayor precisión)**, **póster oficial**, **dónde verla** (streaming, alquiler o compra) y **reparto principal**. La búsqueda de datos en TMDb ahora es más robusta, manejando títulos ambiguos y asegurando la mayor cantidad de información disponible.
+El bot funciona como una aplicación FastAPI desplegada en Render. Telegram envía actualizaciones a un webhook, la aplicación procesa el mensaje, interactúa con las APIs externas (OpenRouter, TMDb) y la base de datos, y finalmente devuelve una respuesta al usuario.
 
-* 🧠 IA potenciada con LLM (OpenRouter) **con Respaldo Automático:** Usa un modelo de lenguaje para generar respuestas contextuales y coherentes. Si el modelo principal falla por exceso de peticiones, el bot intentará automáticamente con un modelo de respaldo para asegurar la continuidad del servicio.
+```mermaid
+graph TD
+    subgraph "Usuario"
+        A[Usuario en Telegram]
+    end
 
-* 🖋️ Formato enriquecido: Usa HTML para mejorar la presentación de los mensajes en Telegram (negritas, cursivas, emojis, etc.).
+    subgraph "Infraestructura"
+        B(FastAPI en Render)
+    end
 
-* 📚 Almacenado en base de datos PostgreSQL por medio de Neon Tech y lectura de historial para darle un contexto al modelo LLM.
+    subgraph "APIs Externas"
+        C[API de Telegram]
+        D[OpenRouter LLM]
+        E[API de TMDb]
+    end
 
-* ☁️ Deploy simple: Preparado para desplegar fácilmente en Render, con soporte para monitoreo vía /ping.
+    subgraph "Base de Datos"
+        F[PostgreSQL en Neon]
+    end
 
-#### 📁 Estructura del proyecto
+    A -- 1. Envía mensaje --> C
+    C -- 2. Webhook --> B
+    B -- 3. Valida y limpia --> B
+    B -- 4. Pide historial --> F
+    F -- 5. Devuelve historial --> B
+    B -- 6. Envía prompt con contexto --> D
+    D -- 7. Devuelve respuesta --> B
+    B -- 8. Extrae títulos y busca en TMDb --> E
+    E -- 9. Devuelve datos (póster, tráiler, etc.) --> B
+    B -- 10. Guarda en historial --> F
+    B -- 11. Envía respuesta enriquecida --> C
+    C -- 12. Muestra en chat --> A
+```
+
+## 📁 Estructura del Proyecto
+
+La estructura está organizada por módulos para separar responsabilidades, facilitando el mantenimiento y la escalabilidad.
 
 ```
 app/
-  main.py           # FastAPI app, webhook, ping
-  bot/
-    telegram.py     # Funciones para enviar mensajes y acciones a Telegram
-  core/
-    config.py       # Configuración y carga de variables de entorno
-    exception_handlers.py
-    exceptions.py   # Excepciones
-    utils.py        # Funciones auxiliares (saludos, parseo, limpieza, validación)
-  data/
-    prompt.py       # Prompts y textos del bot
-  db/
-    chat_history.py # Funcionalidad en base de datos
-    database.py     # Conexión y Sesión
-  models/
-    chat_history.py # Modelo para creación de tabla
-  routes/
-    telegram.py     # Rutas FastAPI para webhook y consultar historial
-  schemas/
-    chat_history.py #  Lectura y validación de tipo de datos en objetos
-  services/
-    llm_agent.py    # Orquesta la lógica del LLM y el formato de la respuesta
-    tmdb_service.py # Lógica para interactuar con la API de TMDb
-requirements.txt    # Dependencias
-Procfile            # Comando para despliegue en Render
+├── main.py           # App principal de FastAPI, webhook y endpoint /ping
+├── bot/
+│   └── telegram.py   # Lógica para interactuar con la API de Telegram
+├── core/
+│   ├── config.py     # Carga y gestión de variables de entorno
+│   ├── exceptions.py # Excepciones personalizadas
+│   └── utils.py      # Funciones auxiliares (validación, limpieza de texto)
+├── data/
+│   └── prompt.py     # Plantillas de prompts para el LLM
+├── db/
+│   ├── chat_history.py # Operaciones CRUD para el historial de chat
+│   └── database.py     # Configuración de la sesión de base de datos
+├── models/
+│   └── chat_history.py # Modelo de datos SQLAlchemy para la tabla de historial
+├── routes/
+│   └── telegram.py     # Rutas de la API (webhook, historial)
+├── schemas/
+│   └── chat_history.py # Esquemas Pydantic para validación de datos
+└── services/
+    ├── llm_agent.py    # Orquesta la llamada al LLM y el formato de la respuesta
+    └── tmdb_service.py # Lógica para interactuar con la API de TMDb
 ```
 
-#### 🔐 Archivo `.env` necesario
+## 🔐 Variables de Entorno
+
+Crea un archivo `.env` en la raíz del proyecto. Puedes tener diferentes archivos (`.env.dev`, `.env.prod`) y renombrarlos a `.env` según el entorno en el que quieras trabajar.
+
+El archivo `.env` debe contener las siguientes variables:
 
 ```env
-TELEGRAM_TOKEN=telegram_token
-OPENROUTER_API_KEY=openrouter_key
-OPENROUTER_MODEL=modelo
-OPENROUTER_FALLBACK_MODEL=modelo_de_respaldo # Nuevo: Modelo alternativo para usar si el principal falla
-TMDB_API_KEY=tmdb_key
-TELEGRAM_API_URL=https://api.telegram.org/bot
-BASE_URL=URL de render
-DATABASE_URL=URL de base de datos
+# Token del bot de Telegram
+TELEGRAM_TOKEN="tu_token_de_telegram"
+
+# Clave de API de OpenRouter
+OPENROUTER_API_KEY="tu_clave_de_openrouter"
+
+# Modelo principal y de respaldo de OpenRouter
+OPENROUTER_MODEL="google/gemini-pro-1.5"
+OPENROUTER_FALLBACK_MODEL="anthropic/claude-3-haiku"
+
+# Clave de API de The Movie Database (TMDb)
+TMDB_API_KEY="tu_clave_de_tmdb"
+
+# URL base de la API de Telegram
+TELEGRAM_API_URL="https://api.telegram.org/bot"
+
+# URL de despliegue (ej. la URL de Render)
+BASE_URL="https://tu_app.onrender.com"
+
+# URL de conexión a la base de datos PostgreSQL (Neon)
+DATABASE_URL="postgresql+asyncpg://user:password@host:port/dbname"
+
+# Versión de la API (utilizada en main.py)
+API_VERSION="1"
 ```
 
-#### 🧪 Instalación y Ejecución
+## 🧪 Instalación y Ejecución Local
 
-##### Instalar dependencias
+1.  **Instalar dependencias**:
+    ```bash
+    pipenv install --dev
+    ```
 
-```bash
-pipenv install --dev
-```
+2.  **Ejecutar el servidor**:
+    ```bash
+    pipenv run uvicorn app.main:app --reload
+    ```
 
-##### Ejecutar servidor de desarrollo
+## ☁️ Despliegue
 
-```bash
-pipenv run uvicorn app.main:app --reload
-```
+El proyecto está preparado para desplegarse en **Render**. El `Procfile` contiene el comando `gunicorn` necesario para producción. Render instalará las dependencias automáticamente desde `requirements.txt` y ejecutará la aplicación.
 
-#### ☁️ Despliegue
-El bot está desplegado en Render.com. Usa un webhook conectado a Telegram para recibir los mensajes y responderlos en tiempo real.
+## 📜 Licencia
 
-#### 📚 Historial y contexto de conversación
-- Se usa PostgreSQL (vía Neon) y SQLAlchemy Async para almacenar las conversaciones.
-- Esto permite recuperar el contexto y generar respuestas más personalizadas.
-- Incluye un endpoint `/telegram/history/{chat_id}` para consultar el historial.
-
-#### 📡 Monitorización del servicio
-
-Se expone un endpoint `/ping` para verificar que el bot está activo y responder a herramientas de monitoreo como [UptimeRobot](https://uptimerobot.com/?rid=62d4f0a7928e50).
-
-#### ✒️ ¿Cómo funciona?
-
-1. Telegram envía un mensaje al webhook (`routes/telegram.py`).
-2. Se valida y limpia el mensaje recibido (`validate_message` en `utils.py`).
-3. Se recupera el historial del chat desde la base de datos (`db/chat_history.py`) para dar contexto.
-4. Se llama a OpenRouter para generar la respuesta (`services/llm_agent.py`). **Si el modelo principal falla, se intenta con el modelo de respaldo.**
-5. La respuesta del LLM se procesa para extraer los títulos de las películas y series. Se usa el `tmdb_service` para buscar el tráiler, póster, dónde ver y el reparto de cada una. **La búsqueda de datos en TMDb ahora es más precisa y robusta.**
-6. Se almacena el mensaje y respuesta en la base de datos (`db/chat_history.py`).
-7. Se inserta el nuevo registro en la base de datos (`db/chat_history.py`).
-8. Se envía la respuesta final, enriquecida con los links, al usuario vía Telegram (`bot/telegram.py`).
-
-#### 🧠 Flujo del bot
-```mermaid
-sequenceDiagram
-    participant T as Usuario (Telegram)
-    participant F as FastAPI Webhook
-    participant V as Validación
-    participant D as BD Neon (PostgreSQL)
-    participant L as LLM vía OpenRouter
-    participant TM as TMDb API
-    participant G as Guardado y respuesta
-
-    T->>F: Enviar mensaje
-    F->>V: Validar mensaje
-    V->>D: Obtener historial reciente
-    D-->>L: Enviar contexto a LLM
-    L-->>F: Recibir respuesta con [TÍTULO]
-    F->>TM: Buscar datos (tráiler, póster, etc.)
-    TM-->>F: Devolver links
-    F->>G: Guardar en base de datos
-    G->>D: Insertar nuevo registro
-    G->>T: Enviar respuesta a Telegram
-```
-#### 🛠️ Tecnologías usadas
-* Python 3.11+
-* FastAPI
-* PostgreSQL (Neon)
-* SQLAlchemy Async
-* OpenRouter (deepseek, gpt-4, etc.)
-* TMDb API
-* Telegram Bot API
-
-#### 📜 Licencia
 MIT © [vicogarcia16](https://github.com/vicogarcia16)

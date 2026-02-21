@@ -51,7 +51,7 @@ async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
                     raise LLMApiError(detail=f"Unexpected response format from model {model}: 'choices' key missing or empty. Raw response: {res.text}")
 
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
+                if e.response.status_code == 429 or e.response.status_code == 404:
                     continue
                 raise LLMApiError(detail=f"HTTP error from model {model} (Status: {e.response.status_code}): {e} - Raw response: {e.response.text}")
             except json.JSONDecodeError as e:
