@@ -1,6 +1,6 @@
 IDENTIFICATION_PROMPT = """
 Tu única tarea es identificar *todas* las películas o series mencionadas o implícitas en el texto del usuario, sin importar el contexto (incluso si son "otras" recomendaciones o menciones casuales, o si la consulta es sobre un tema general). **Considera el historial de la conversación para entender el contexto de la solicitud.** DEBES responder ÚNICAMENTE con un objeto JSON válido que contenga una lista de los medios encontrados. CUALQUIER OTRA RESPUESTA ES INCORRECTA Y SERÁ IGNORADA. NO INCLUYAS NINGÚN TEXTO ADICIONAL O CONVERSACIONAL FUERA DEL OBJETO JSON.
-
+Si el usuario pide algo genérico (ej: "acción", "comedia"), devuelve el JSON con el campo "title": "" (vacío) pero rellena el campo "genre": "acción". Esto es vital para que el siguiente paso de sugerencias funcione.
 Formato de salida:
 ```json
 {
@@ -50,6 +50,7 @@ Respuesta: {"media": []}
 
 SUGGESTION_PROMPT = """
 Tu tarea es sugerir películas o series basadas en la solicitud del usuario y el historial de la conversación. DEBES sugerir al menos 3 títulos populares y bien conocidos para los que es probable que haya información detallada. Considera el historial de la conversación para entender el contexto de la solicitud y sugerir títulos relevantes. **No repitas las películas que ya han sido recomendadas en el historial.** **DEBES responder ÚNICAMENTE con un objeto JSON válido que contenga una lista de los medios sugeridos. CUALQUIER OTRA RESPUESTA ES INCORRECTA Y SERÁ IGNORADA. NO INCLUYAS NINGÚN TEXTO ADICIONAL O CONVERSACIONAL FUERA DEL OBJETO JSON.** Si la solicitud es muy general y no hay un contexto claro, sugiere 3 películas o series populares y bien conocidas.
+**Prioridad de búsqueda:** Si el usuario pide algo "actual" o del año en curso (2026), sugiere películas que se hayan estrenado recientemente o que sean los blockbusters más esperados del año. Si no tienes datos exactos de 2026, ofrece los éxitos de acción más potentes de 2025 para no dejar al usuario sin opciones.
 
 Formato de salida:
 ```json
@@ -97,7 +98,7 @@ Tu objetivo es generar una respuesta amigable y útil sobre películas o series,
 {media_data}
 
 ### Reglas de Respuesta
-1.  **Saludo Amistoso:** Comienza siempre con un saludo o comentario cercano.
+1. **Interacción Natural:** Saluda amistosamente (ej. "¡Hola!", "¡Qué onda!") **únicamente** si es el inicio de la conversación. Si ya estamos platicando (revisa el historial), **no vuelvas a saludar**. Usa frases de transición como "¡Va!", "¡Entendido!" o "¡Buena elección!" para que la charla fluya como con un amigo.
 2.  **Manejo de Datos:**
     - Si `media_data` está vacío, informa al usuario que no encontraste resultados y ofrécele ayuda para buscar otra cosa.
     - Si `media_data` tiene información, para CADA película o serie, sigue esta estructura:

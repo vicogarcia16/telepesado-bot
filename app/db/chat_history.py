@@ -5,16 +5,21 @@ from app.schemas.chat_history import (
     ChatHistoryResponse,
     ChatHistoryListResponse,
 )
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, asc
 from app.core.utils import clean_text
 
 async def get_last_chats(db: AsyncSession, chat_id: int, limit: int = 5):
-    result = await db.execute(
+    subquery = (
         select(ChatHistory)
         .where(ChatHistory.chat_id == chat_id)
         .order_by(desc(ChatHistory.created_at))
         .limit(limit)
+        .subquery()
     )
+    result = await db.execute(
+        select(subquery).order_by(asc(subquery.c.created_at))
+    )
+        
     chat_history = result.scalars().all()
     if not chat_history:
         return ChatHistoryListResponse(message="No chat history found", data=[])
