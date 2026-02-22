@@ -6,6 +6,7 @@ from app.schemas.chat_history import (
     ChatHistoryListResponse,
 )
 from sqlalchemy import select, desc, asc
+from sqlalchemy.orm import aliased
 from app.core.utils import clean_text
 
 async def get_last_chats(db: AsyncSession, chat_id: int, limit: int = 5):
@@ -16,8 +17,11 @@ async def get_last_chats(db: AsyncSession, chat_id: int, limit: int = 5):
         .limit(limit)
         .subquery()
     )
+
+    aliased_chat = aliased(ChatHistory, subquery)
+
     result = await db.execute(
-        select(subquery).order_by(asc(subquery.c.created_at))
+        select(aliased_chat).order_by(asc(aliased_chat.created_at))
     )
         
     chat_history = result.scalars().all()
