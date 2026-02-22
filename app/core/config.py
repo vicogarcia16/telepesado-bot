@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     API_VERSION: str = '1'
     TMDB_API_KEY: str
+    AZURE_OPENAI_API_KEY: str
+    AZURE_OPENAI_DEPLOYMENT_NAME: str
+    AZURE_OPENAI_ENDPOINT: str
     
     class Config:
         env_file = ".env"

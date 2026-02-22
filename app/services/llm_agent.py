@@ -6,72 +6,32 @@ from app.data.prompt import IDENTIFICATION_PROMPT, CREATIVE_PROMPT, SUGGESTION_P
 from app.core.exceptions import LLMApiError
 from app.services.tmdb_service import search_media_data
 from app.db import chat_history
+from openai import AsyncAzureOpenAI
 import logging
 
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-OPENROUTER_API_KEY = settings.OPENROUTER_API_KEY
-OPENROUTER_MODEL = settings.OPENROUTER_MODEL
-OPENROUTER_FALLBACK_MODEL = settings.OPENROUTER_FALLBACK_MODEL
+client = AsyncAzureOpenAI(
+    azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
+    api_key=settings.AZURE_OPENAI_API_KEY,
+    api_version="2025-04-14",
+)
 
 async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
-    models_to_try = [OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL]
-    
-    for model in models_to_try:
-        url = "https://openrouter.ai/api/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        data = {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.7,
-            "max_tokens": 1500
-        }
-        if is_json:
-            data["response_format"] = {"type": "json_object"}
+    try:
+      response = await client.chat.completions.create(
+        model=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
+        messages=messages,
+        response_format={"type": "json_object"} if is_json else None,
+        temperature=0.7,
+      )
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            try:
-                res = await client.post(url, headers=headers, json=data)
-                if res.status_code == 429:
-                    logger.warning(f"Modelo {model} rate-limited (429). Esperando 1s...")
-                    await asyncio.sleep(1) 
-                    continue
-                
-                if res.status_code in [402, 502, 503, 524]:
-                    continue
-                
-                res.raise_for_status()
-
-                response_json = res.json()
-
-                if "error" in response_json and "message" in response_json["error"]:
-                    error_message = response_json["error"]["message"]
-                    error_code = response_json["error"].get("code")
-                    if "rate-limited" in error_message.lower() or error_code == 524:
-                        continue
-                    raise LLMApiError(detail=f"Model API error {model}: {error_message}")
-
-                if "choices" in response_json and len(response_json["choices"]) > 0:
-                    return response_json["choices"][0]["message"]["content"]
-                else:
-                    raise LLMApiError(detail=f"Unexpected response format from model {model}: 'choices' key missing or empty. Raw response: {res.text}")
-
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code in [401, 402, 404, 429, 502, 503, 524]:
-                    logger.warning(f"Modelo {model} falló con status {e.response.status_code}. Intentando fallback...")
-                    continue
-                raise LLMApiError(detail=f"HTTP error from model {model} (Status: {e.response.status_code}): {e} - Raw response: {e.response.text}")
-            except json.JSONDecodeError as e:
-                raise LLMApiError(detail=f"Invalid JSON response from model {model}: {e}. Raw response: {res.text}")
-            except Exception as e:
-                raise LLMApiError(detail=f"An unexpected error occurred with model {model}: {e}. Raw response: {res.text if res else 'No response'}")
-
-    raise LLMApiError(detail="All models failed. The primary and fallback models might be rate-limited or unavailable.")
+      return response["choices"][0]["message"]["content"]
+    except Exception as e:
+        logger.error(f"Error in Azure OpenAI API: {e}")
+        raise LLMApiError(detail=f"Error in Azure OpenAI API: {e}")
 
 async def get_llm_response(db, chat_id: int, user_message: str) -> str:
     history_response = await chat_history.get_last_chats(db, chat_id)

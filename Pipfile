@@ -12,6 +12,7 @@ sqlalchemy = {extras = ["asyncio"], version = "*"}
 asyncpg = "*"
 tmdbsimple = "*"
 starlette = "==0.47.1"
+openai = "*"
 
 [dev-packages]
 
