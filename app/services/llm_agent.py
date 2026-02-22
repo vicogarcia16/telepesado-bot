@@ -16,7 +16,7 @@ settings = get_settings()
 client = AsyncAzureOpenAI(
     azure_endpoint=settings.AZURE_OPENAI_ENDPOINT,
     api_key=settings.AZURE_OPENAI_API_KEY,
-    api_version="2025-04-14",
+    api_version="2024-02-01",
 )
 
 async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
@@ -28,7 +28,7 @@ async def _call_llm_api(messages: list[dict], is_json: bool = False) -> str:
         temperature=0.7,
       )
 
-      return response["choices"][0]["message"]["content"]
+      return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error in Azure OpenAI API: {e}")
         raise LLMApiError(detail=f"Error in Azure OpenAI API: {e}")
