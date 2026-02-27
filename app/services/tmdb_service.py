@@ -13,7 +13,7 @@ async def _search_media(search_client, media_type: str, title: str, year: str, a
     
     best_match = None
 
-    search_params = {"query": title}
+    search_params = {"query": title, "language": "es-MX"}
     if year:
         search_params["year"] = year
 
@@ -92,7 +92,7 @@ async def search_media_data(media_type: str, title: str, year: str, actor: str =
             media_id = best_match['id']
             media_obj = tmdb.Movies(media_id) if media_type == 'PELICULA' else tmdb.TV(media_id)
 
-            details_task = asyncio.to_thread(media_obj.info)
+            details_task = asyncio.to_thread(media_obj.info, language='es-MX')
             videos_task = asyncio.to_thread(media_obj.videos)
             providers_task = asyncio.to_thread(media_obj.watch_providers)
             credits_task = asyncio.to_thread(media_obj.credits)
@@ -119,18 +119,23 @@ async def search_media_data(media_type: str, title: str, year: str, actor: str =
                     if preferred_videos:
                         result["trailer_link"] = f"https://www.youtube.com/watch?v={preferred_videos[0]['key']}"
 
-            if not isinstance(providers_res, Exception) and providers_res is not None and 'results' in providers_res and 'PE' in providers_res['results']:
-                providers = providers_res['results']['PE']
-                result['watch_providers'] = {
-                    'buy': [p['provider_name'] for p in providers.get('buy', [])],
-                    'rent': [p['provider_name'] for p in providers.get('rent', [])],
-                    'flatrate': [p['provider_name'] for p in providers.get('flatrate', [])]
-                }
+            if not isinstance(providers_res, Exception) and providers_res is not None and 'results' in providers_res:
+                # Prioridad de búsqueda: Perú, México, Argentina, Colombia, Chile, España, USA
+                target_countries = ['PE', 'MX', 'AR', 'CO', 'CL', 'ES', 'US']
+                country_code = next((code for code in target_countries if code in providers_res['results']), None)
+                
+                if country_code:
+                    providers = providers_res['results'][country_code]
+                    result['watch_providers'] = {
+                        'buy': [p['provider_name'] for p in providers.get('buy', [])],
+                        'rent': [p['provider_name'] for p in providers.get('rent', [])],
+                        'flatrate': [p['provider_name'] for p in providers.get('flatrate', [])]
+                    }
 
             if not isinstance(credits_res, Exception) and 'cast' in credits_res:
                 cast_data = credits_res['cast']
                 sorted_cast = sorted(cast_data, key=lambda actor: (actor.get('order', 999), -actor.get('popularity', 0.0)))
-                result['cast'] = [actor['name'] for actor in sorted_cast if actor.get('known_for_department') == 'Acting'][:5]
+                result['cast'] = [actor['name'] for actor in sorted_cast][:5]
 
     except Exception as e:
         raise YouTubeSearchError(detail=f"Failed to search TMDb for movie data: {e}")
