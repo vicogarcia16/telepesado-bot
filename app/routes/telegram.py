@@ -4,7 +4,7 @@ from app.core.exceptions import JsonInvalidException
 from app.bot.telegram import send_typing_action, send_message
 from app.core.utils import validate_message, is_saludo, parse_message
 from app.data.prompt import SALUDO_INICIAL
-from app.db.chat_history import create_chat_history, get_last_chats, build_chat_context
+from app.db.chat_history import create_chat_history, get_last_chats, build_chat_context, delete_chat_history
 from app.schemas.chat_history import ChatHistoryCreate, ChatHistoryListResponse
 from app.db.database import AsyncSessionLocal
 import asyncio
@@ -62,6 +62,12 @@ async def telegram_webhook(req: Request, background_tasks: BackgroundTasks):
     
     message = body.get("message", {})
     chat_id, text = validate_message(message)
+
+    if text == "/reset":
+        async with AsyncSessionLocal() as db:
+            await delete_chat_history(db, chat_id)
+        await send_message(chat_id, "🧹 ¡Memoria borrada! Empecemos de cero.")
+        return {"ok": True}
 
     if is_saludo(text):
         await send_message(chat_id, SALUDO_INICIAL)

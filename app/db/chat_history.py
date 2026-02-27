@@ -5,7 +5,7 @@ from app.schemas.chat_history import (
     ChatHistoryResponse,
     ChatHistoryListResponse,
 )
-from sqlalchemy import select, desc, asc
+from sqlalchemy import select, desc, asc, delete
 from sqlalchemy.orm import aliased
 from app.core.utils import clean_text
 
@@ -36,6 +36,10 @@ async def create_chat_history(db: AsyncSession, chat_history: ChatHistoryCreate)
     await db.commit()
     await db.refresh(db_chat_history)
     return ChatHistoryResponse(message="Chat history created", data=db_chat_history)
+
+async def delete_chat_history(db: AsyncSession, chat_id: int):
+    await db.execute(delete(ChatHistory).where(ChatHistory.chat_id == chat_id))
+    await db.commit()
 
 async def build_chat_context(db: AsyncSession, chat_id: int, user_message: str) -> str:
     last_chats = await get_last_chats(db, chat_id)

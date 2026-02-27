@@ -1,6 +1,17 @@
 IDENTIFICATION_PROMPT = """
-Tu única tarea es identificar *todas* las películas o series mencionadas o implícitas en el texto del usuario, sin importar el contexto (incluso si son "otras" recomendaciones o menciones casuales, o si la consulta es sobre un tema general). **Considera el historial de la conversación para entender el contexto de la solicitud.** DEBES responder ÚNICAMENTE con un objeto JSON válido que contenga una lista de los medios encontrados. CUALQUIER OTRA RESPUESTA ES INCORRECTA Y SERÁ IGNORADA. NO INCLUYAS NINGÚN TEXTO ADICIONAL O CONVERSACIONAL FUERA DEL OBJETO JSON.
-Si el usuario pide algo genérico (ej: "acción", "comedia"), devuelve el JSON con el campo "title": "" (vacío) pero rellena el campo "genre": "acción". Esto es vital para que el siguiente paso de sugerencias funcione.
+Tu tarea es actuar como un motor de búsqueda y recomendación inteligente. DEBES generar un objeto JSON con una lista de películas o series que el sistema debe buscar en la base de datos para responder al usuario.
+
+### Instrucciones:
+1. **Identificación:** Si el usuario menciona títulos explícitos, inclúyelos.
+2. **Recomendación:** Si el usuario pide sugerencias (ej: "dame comedias", "algo parecido a Barry", "qué me recomiendas"), **DEBES GENERAR** 3 títulos recomendados y añadirlos a la lista.
+   - Si pide "parecidas a X", incluye el título original (X) Y las 3 recomendaciones.
+   - Si pide algo "actual" o del año en curso (2026), sugiere estrenos recientes o blockbusters esperados.
+3. **Contexto (CRÍTICO):**
+   - Si el usuario dice "la serie de Barry", marca "type": "SERIE". Si dice "la película", marca "PELICULA".
+   - Usa el historial para desambiguar.
+
+DEBES responder ÚNICAMENTE con un objeto JSON válido.
+
 Formato de salida:
 ```json
 {
@@ -9,9 +20,9 @@ Formato de salida:
       "type": "PELICULA" o "SERIE",
       "title": "Nombre de la Película o Serie",
       "year": "Año de estreno (si se menciona, opcional)",
-      "actor": "Nombre del actor (si se menciona, opcional)",
-      "genre": "Género (si se menciona, opcional)",
-      "director": "Nombre del director (si se menciona, opcional)"
+      "actor": "Nombre del actor (opcional)",
+      "genre": "Género (opcional)",
+      "director": "Nombre del director (opcional)"
     }
   ]
 }
@@ -23,62 +34,14 @@ Ejemplos:
 Usuario: Me gustaría saber sobre la película "El Padrino".
 Respuesta: {"media": [{"type": "PELICULA", "title": "El Padrino"}]}
 
-Usuario: ¿Qué tal la serie "Friends"?
-Respuesta: {"media": [{"type": "SERIE", "title": "Friends"}]}
-
-Usuario: Recomiéndame otras películas de Will Ferrell como "Elf" o "Blades of Glory".
-Respuesta: {"media": [{"type": "PELICULA", "title": "Elf"}, {"type": "PELICULA", "title": "Blades of Glory"}]}
-
-Usuario: Alguna otra de él?
-Respuesta: {"media": [{"type": "PELICULA", "title": "Anchorman: The Legend of Ron Burgundy"}]} # Asumiendo que la conversación previa fue sobre Will Ferrell y se infiere el título.
-
-Usuario: Alguna otra como la primera?
-Respuesta: {"media": [{"type": "PELICULA", "title": "Crazy, Stupid, Love", "year": "2011"}]} # Asumiendo que la "primera" película de la conversación anterior fue Crazy, Stupid, Love (2011).
-
-Usuario: Háblame de "The Office" de Estados Unidos.
-Respuesta: {"media": [{"type": "SERIE", "title": "The Office", "year": "Estados Unidos"}]}
-
-Usuario: ¿Tienes información sobre "Zoolander" (2001)?
-Respuesta: {"media": [{"type": "PELICULA", "title": "Zoolander", "year": "2001"}]}
-
-Usuario: ¿Qué me dices de "The Campaign" o "Blades of Glory"?
-Respuesta: {"media": [{"type": "PELICULA", "title": "The Campaign"}, {"type": "PELICULA", "title": "Blades of Glory"}]}
-
-Usuario: No sé qué ver.
-Respuesta: {"media": []}
-"""
-
-SUGGESTION_PROMPT = """
-Tu tarea es sugerir películas o series basadas en la solicitud del usuario y el historial de la conversación. DEBES sugerir al menos 3 títulos populares y bien conocidos para los que es probable que haya información detallada. Considera el historial de la conversación para entender el contexto de la solicitud y sugerir títulos relevantes. **No repitas las películas que ya han sido recomendadas en el historial.** **DEBES responder ÚNICAMENTE con un objeto JSON válido que contenga una lista de los medios sugeridos. CUALQUIER OTRA RESPUESTA ES INCORRECTA Y SERÁ IGNORADA. NO INCLUYAS NINGÚN TEXTO ADICIONAL O CONVERSACIONAL FUERA DEL OBJETO JSON.** Si la solicitud es muy general y no hay un contexto claro, sugiere 3 películas o series populares y bien conocidas.
-**Prioridad de búsqueda:** Si el usuario pide algo "actual" o del año en curso (2026), sugiere películas que se hayan estrenado recientemente o que sean los blockbusters más esperados del año. Si no tienes datos exactos de 2026, ofrece los éxitos de acción más potentes de 2025 para no dejar al usuario sin opciones.
-
-Formato de salida:
-```json
-{
-  "media": [
-    {
-      "type": "PELICULA" o "SERIE",
-      "title": "Nombre de la Película o Serie",
-      "year": "Año de estreno (si es relevante, opcional)",
-      "actor": "Nombre del actor (si se menciona, opcional)",
-      "genre": "Género (si se menciona, opcional)",
-      "director": "Nombre del director (si se menciona, opcional)"
-    }
-  ]
-}
-```
-
-Si no puedes sugerir nada, responde con: `{"media": []}`.
-
-Ejemplos:
 Usuario: Recomiéndame otras películas de Will Ferrell.
 Respuesta: {"media": [{"type": "PELICULA", "title": "Anchorman: The Legend of Ron Burgundy"}, {"type": "PELICULA", "title": "Talladega Nights: The Ballad of Ricky Bobby"}]}
 
 Usuario: Quiero ver una serie de comedia.
 Respuesta: {"media": [{"type": "SERIE", "title": "The Office"}, {"type": "SERIE", "title": "Parks and Recreation"}]}
 
-Usuario: Dame algo de acción.
-Respuesta: {"media": [{"type": "PELICULA", "title": "Mad Max: Fury Road"}, {"type": "PELICULA", "title": "John Wick"}]}
+Usuario: Me gusta la serie de Barry, ¿qué otras son parecidas?
+Respuesta: {"media": [{"type": "SERIE", "title": "Barry"}, {"type": "SERIE", "title": "Fargo"}, {"type": "SERIE", "title": "Killing Eve"}, {"type": "SERIE", "title": "Dead to Me"}]}
 
 """
 
@@ -138,6 +101,6 @@ Reparto: Rami Malek, Christian Slater, Carly Chaikin, Portia Doubleday, Martin W
 
 """
 
-SALUDOS = ["/start", "hola", "buenas", "hey", "¿estás ahí", "estas ahi", "¿estas ahí"]
+SALUDOS = ["/start", "hola", "buenas", "hey", "¿estás ahí", "estas ahi", "¿estas ahí", "que onda"]
 
 SALUDO_INICIAL = "¡Hola! 😊 ¿Listo para una recomendación de cine o series? Solo dime el género o tipo de peli/serie que quieres ver."

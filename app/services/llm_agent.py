@@ -2,7 +2,7 @@ import httpx
 import json
 import asyncio
 from app.core.config import get_settings
-from app.data.prompt import IDENTIFICATION_PROMPT, CREATIVE_PROMPT, SUGGESTION_PROMPT
+from app.data.prompt import IDENTIFICATION_PROMPT, CREATIVE_PROMPT
 from app.core.exceptions import LLMApiError
 from app.services.tmdb_service import search_media_data
 from app.db import chat_history
@@ -51,30 +51,11 @@ async def get_llm_response(db, chat_id: int, user_message: str) -> str:
     except json.JSONDecodeError:
         media_list = []
 
-    suggestion_response_content = ""
-    if not media_list:
-        suggestion_messages = [
-            {"role": "system", "content": SUGGESTION_PROMPT},
-        ]
-        for entry in history:
-            suggestion_messages.append({"role": "user", "content": entry.message})
-            suggestion_messages.append({"role": "assistant", "content": entry.response})
-        suggestion_messages.append({"role": "user", "content": user_message})
-
-        suggestion_response_content = await _call_llm_api(suggestion_messages, is_json=True)
-        try:
-            suggested_media_list = json.loads(suggestion_response_content).get("media", [])
-        except json.JSONDecodeError:
-            suggested_media_list = []
-        
-        media_list = suggested_media_list
-
     if not media_list:
         creative_prompt_content = CREATIVE_PROMPT.format(
             user_query=user_message,
             media_data=json.dumps([], indent=2, ensure_ascii=False),
-            identification_raw=identification_response_content,
-            suggestion_raw=suggestion_response_content
+            identification_raw=identification_response_content
         )
         creative_messages = [
             {"role": "system", "content": creative_prompt_content},
@@ -112,8 +93,7 @@ async def get_llm_response(db, chat_id: int, user_message: str) -> str:
     creative_prompt_content = CREATIVE_PROMPT.format(
         user_query=user_message,
         media_data=json.dumps(formatted_media_data, indent=2, ensure_ascii=False),
-        identification_raw=identification_response_content,
-        suggestion_raw=suggestion_response_content
+        identification_raw=identification_response_content
     )
     creative_messages = [
         {"role": "system", "content": creative_prompt_content},
