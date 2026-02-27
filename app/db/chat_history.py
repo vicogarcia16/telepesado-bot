@@ -45,6 +45,6 @@ async def build_chat_context(db: AsyncSession, chat_id: int, user_message: str) 
     last_chats = await get_last_chats(db, chat_id)
     context = "\n".join(
         f"User: {clean_text(chat.message)}\nBot: {clean_text(chat.response)}"
-        for chat in reversed(last_chats.data)
+        for chat in last_chats.data
     )
     return f"{context}\nUser: {user_message}" if context else f"User: {user_message}"
