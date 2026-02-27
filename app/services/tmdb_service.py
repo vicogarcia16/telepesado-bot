@@ -38,6 +38,13 @@ async def _search_media(search_client, media_type: str, title: str, year: str, a
         if has_poster:
             score += 100
 
+        # Priorizar coincidencia exacta de título
+        title_key = 'title' if media_type == 'PELICULA' else 'name'
+        original_title_key = 'original_title' if media_type == 'PELICULA' else 'original_name'
+        
+        if title.lower() == result.get(title_key, '').lower() or title.lower() == result.get(original_title_key, '').lower():
+            score += 200
+
         if year and current_year is not None:
             if str(current_year) == year:
                 score += 50
