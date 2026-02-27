@@ -136,7 +136,9 @@ async def search_media_data(media_type: str, title: str, year: str, actor: str =
                     result['watch_providers'] = {
                         'buy': [p['provider_name'] for p in providers.get('buy', [])],
                         'rent': [p['provider_name'] for p in providers.get('rent', [])],
-                        'flatrate': [p['provider_name'] for p in providers.get('flatrate', [])]
+                        'flatrate': [p['provider_name'] for p in providers.get('flatrate', [])],
+                        'ads': [p['provider_name'] for p in providers.get('ads', [])],
+                        'free': [p['provider_name'] for p in providers.get('free', [])]
                     }
 
             if not isinstance(credits_res, Exception) and 'cast' in credits_res:

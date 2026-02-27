@@ -74,6 +74,7 @@ Tu objetivo es generar una respuesta amigable y útil sobre películas o series,
                 - `Streaming: [lista de plataformas]`
                 - `Alquiler: [lista de plataformas]`
                 - `Compra: [lista de plataformas]`
+                - `Gratis/Ads: [lista de plataformas]`
             - `Reparto: [lista de actores]` (los 5 principales)
         d.  **Datos Curiosos (Opcional):** Si tienes algún dato curioso, añádelo después de los datos estructurados.
 3.  **Formato General:**
